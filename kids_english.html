@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>趣味单词挑战赛 (200词版)</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #FF9F1C;
+            --secondary-color: #2EC4B6;
+            --accent-color: #FFBF69;
+            --bg-color: #E0F7FA;
+            --text-color: #2D3436;
+        }
+
+        body {
+            font-family: 'Comic Sans MS', 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            color: var(--text-color);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #app {
+            width: 90%;
+            max-width: 400px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            padding: 25px 20px;
+            text-align: center;
+            position: relative;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .stage-badge {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent-color);
+            color: #fff;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        h1 { color: var(--secondary-color); margin: 10px 0; font-size: 1.8rem; }
+        h2 { font-size: 2.5rem; margin: 15px 0; color: var(--primary-color); word-wrap: break-word; }
+        .emoji { font-size: 6rem; display: block; margin: 10px auto; animation: float 3s ease-in-out infinite; }
+        .translation { font-size: 1.4rem; color: #555; margin-bottom: 20px; font-weight: bold; }
+
+        button {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 15px 0;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 10px auto;
+            box-shadow: 0 6px 0 #239a8e;
+            transition: all 0.1s;
+            width: 100%;
+            display: block;
+            font-weight: bold;
+        }
+
+        button:active { box-shadow: 0 2px 0 #239a8e; transform: translateY(4px); }
+
+        button.sound-btn {
+            background-color: var(--accent-color);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            padding: 0;
+            box-shadow: 0 4px 0 #dca35a;
+            font-size: 1.5rem;
+            margin: 0 auto 15px auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .option-btn {
+            background-color: #fff;
+            color: var(--text-color);
+            border: 2px solid #eee;
+            box-shadow: 0 4px 0 #ddd;
+            margin: 6px 0;
+            padding: 10px;
+            font-size: 1.1rem;
+        }
+        .option-btn:active { box-shadow: 0 2px 0 #ccc; transform: translateY(2px); }
+
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+        @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+
+        .screen { display: none; animation: pop 0.3s ease-out; width: 100%; height: 100%; flex-direction: column; justify-content: center; }
+        .screen.active { display: flex; }
+
+        .progress-bar { width: 100%; height: 10px; background: #eee; border-radius: 10px; margin-top: auto; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--primary-color); width: 0%; transition: width 0.3s ease; }
+
+        .correct-anim { background: #dcedc8 !important; border-color: #8bc34a !important; }
+        .wrong-anim { background: #ffcdd2 !important; border-color: #e57373 !important; animation: shake 0.4s; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="stage-indicator" class="stage-badge" style="display:none">第 1 / 4 关</div>
+
+    <!-- 首页 -->
+    <div id="start-screen" class="screen active">
+        <h1>英语大挑战</h1>
+        <div class="emoji">🌍</div>
+        <p style="font-size:1.1rem; color:#666; margin: 20px 0;">
+            海量词库：200 词<br>
+            每次随机抽取 20 个挑战！
+        </p>
+        <button onclick="initGame()">开始挑战</button>
+    </div>
+
+    <!-- 学习页 -->
+    <div id="study-screen" class="screen">
+        <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+            <div class="emoji" id="study-emoji"></div>
+            <h2 id="study-word">Word</h2>
+            <p class="translation" id="study-trans">翻译</p>
+            <button class="sound-btn" onclick="speakCurrentWord()">🔊</button>
+        </div>
+        <button onclick="nextStudyCard()" id="study-next-btn">记住了</button>
+    </div>
+
+    <!-- 测验页 -->
+    <div id="quiz-screen" class="screen">
+        <p style="font-size:1.2rem; margin-bottom:15px;">请找出：<br><span id="quiz-question" style="font-weight:bold; font-size:1.6rem; color:var(--primary-color)"></span></p>
+        <div id="quiz-options"></div>
+        <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+    </div>
+
+    <!-- 过关页 -->
+    <div id="level-screen" class="screen">
+        <div class="emoji">✨</div>
+        <h1 id="level-title">关卡完成!</h1>
+        <p>休息一下，准备下一组</p>
+        <button onclick="nextStage()">进入下一关</button>
+    </div>
+    
+    <!-- 通关页 -->
+    <div id="final-screen" class="screen">
+        <div class="emoji">🏆</div>
+        <h1>大满贯!</h1>
+        <p>今天 20 个单词全部搞定！</p>
+        <button onclick="location.reload()" style="background-color:var(--primary-color)">再来一局 (新单词)</button>
+    </div>
+</div>
+
+<script>
+    // --- 200个单词的大词库 ---
+    const fullVocabulary = [
+        // 动物 (Animals)
+        { word: "Cat", trans: "猫", emoji: "🐱" }, { word: "Dog", trans: "狗", emoji: "🐶" },
+        { word: "Elephant", trans: "大象", emoji: "🐘" }, { word: "Lion", trans: "狮子", emoji: "🦁" },
+        { word: "Tiger", trans: "老虎", emoji: "🐯" }, { word: "Monkey", trans: "猴子", emoji: "🐵" },
+        { word: "Rabbit", trans: "兔子", emoji: "🐰" }, { word: "Bear", trans: "熊", emoji: "🐻" },
+        { word: "Panda", trans: "熊猫", emoji: "🐼" }, { word: "Koala", trans: "考拉", emoji: "🐨" },
+        { word: "Pig", trans: "猪", emoji: "🐷" }, { word: "Cow", trans: "奶牛", emoji: "🐮" },
+        { word: "Sheep", trans: "绵羊", emoji: "🐑" }, { word: "Horse", trans: "马", emoji: "🐴" },
+        { word: "Chicken", trans: "鸡", emoji: "🐔" }, { word: "Duck", trans: "鸭子", emoji: "🦆" },
+        { word: "Frog", trans: "青蛙", emoji: "🐸" }, { word: "Fish", trans: "鱼", emoji: "🐟" },
+        { word: "Whale", trans: "鲸鱼", emoji: "🐳" }, { word: "Dolphin", trans: "海豚", emoji: "🐬" },
+        { word: "Shark", trans: "鲨鱼", emoji: "🦈" }, { word: "Octopus", trans: "章鱼", emoji: "🐙" },
+        { word: "Crab", trans: "螃蟹", emoji: "🦀" }, { word: "Turtle", trans: "乌龟", emoji: "🐢" },
+        { word: "Snake", trans: "蛇", emoji: "🐍" }, { word: "Dinosaur", trans: "恐龙", emoji: "🦕" },
+        { word: "Mouse", trans: "老鼠", emoji: "🐭" }, { word: "Giraffe", trans: "长颈鹿", emoji: "🦒" },
+        { word: "Zebra", trans: "斑马", emoji: "🦓" }, { word: "Fox", trans: "狐狸", emoji: "🦊" },
+        { word: "Wolf", trans: "狼", emoji: "🐺" }, { word: "Butterfly", trans: "蝴蝶", emoji: "🦋" },
+        { word: "Bee", trans: "蜜蜂", emoji: "🐝" }, { word: "Ant", trans: "蚂蚁", emoji: "🐜" },
+        { word: "Spider", trans: "蜘蛛", emoji: "🕷️" }, { word: "Snail", trans: "蜗牛", emoji: "🐌" },
+        { word: "Owl", trans: "猫头鹰", emoji: "🦉" }, { word: "Penguin", trans: "企鹅", emoji: "🐧" },
+
+        // 食物与饮料 (Food & Drink)
+        { word: "Apple", trans: "苹果", emoji: "🍎" }, { word: "Banana", trans: "香蕉", emoji: "🍌" },
+        { word: "Orange", trans: "橙子", emoji: "🍊" }, { word: "Grape", trans: "葡萄", emoji: "🍇" },
+        { word: "Watermelon", trans: "西瓜", emoji: "🍉" }, { word: "Strawberry", trans: "草莓", emoji: "🍓" },
+        { word: "Peach", trans: "桃子", emoji: "🍑" }, { word: "Cherry", trans: "樱桃", emoji: "🍒" },
+        { word: "Pineapple", trans: "菠萝", emoji: "🍍" }, { word: "Lemon", trans: "柠檬", emoji: "🍋" },
+        { word: "Carrot", trans: "胡萝卜", emoji: "🥕" }, { word: "Corn", trans: "玉米", emoji: "🌽" },
+        { word: "Tomato", trans: "西红柿", emoji: "🍅" }, { word: "Potato", trans: "土豆", emoji: "🥔" },
+        { word: "Broccoli", trans: "西兰花", emoji: "🥦" }, { word: "Mushroom", trans: "蘑菇", emoji: "🍄" },
+        { word: "Eggplant", trans: "茄子", emoji: "🍆" }, { word: "Chili", trans: "辣椒", emoji: "🌶️" },
+        { word: "Bread", trans: "面包", emoji: "🍞" }, { word: "Rice", trans: "米饭", emoji: "🍚" },
+        { word: "Noodle", trans: "面条", emoji: "🍜" }, { word: "Dumpling", trans: "饺子", emoji: "🥟" },
+        { word: "Meat", trans: "肉", emoji: "🥩" }, { word: "Egg", trans: "鸡蛋", emoji: "🥚" },
+        { word: "Pizza", trans: "披萨", emoji: "🍕" }, { word: "Burger", trans: "汉堡", emoji: "🍔" },
+        { word: "Fries", trans: "薯条", emoji: "🍟" }, { word: "Hot Dog", trans: "热狗", emoji: "🌭" },
+        { word: "Sandwich", trans: "三明治", emoji: "🥪" }, { word: "Popcorn", trans: "爆米花", emoji: "🍿" },
+        { word: "Cake", trans: "蛋糕", emoji: "🍰" }, { word: "Cookie", trans: "曲奇", emoji: "🍪" },
+        { word: "Candy", trans: "糖果", emoji: "🍬" }, { word: "Chocolate", trans: "巧克力", emoji: "🍫" },
+        { word: "Ice Cream", trans: "冰淇淋", emoji: "🍦" }, { word: "Donut", trans: "甜甜圈", emoji: "🍩" },
+        { word: "Water", trans: "水", emoji: "💧" }, { word: "Milk", trans: "牛奶", emoji: "🥛" },
+        { word: "Juice", trans: "果汁", emoji: "🧃" }, { word: "Tea", trans: "茶", emoji: "🍵" },
+        { word: "Coffee", trans: "咖啡", emoji: "☕" }, { word: "Honey", trans: "蜂蜜", emoji: "🍯" },
+
+        // 交通与建筑 (Transport & Places)
+        { word: "Car", trans: "汽车", emoji: "🚗" }, { word: "Bus", trans: "公交车", emoji: "🚌" },
+        { word: "Taxi", trans: "出租车", emoji: "🚕" }, { word: "Police Car", trans: "警车", emoji: "🚓" },
+        { word: "Ambulance", trans: "救护车", emoji: "🚑" }, { word: "Fire Truck", trans: "消防车", emoji: "🚒" },
+        { word: "Bike", trans: "自行车", emoji: "🚲" }, { word: "Motorcycle", trans: "摩托车", emoji: "🏍️" },
+        { word: "Train", trans: "火车", emoji: "🚆" }, { word: "Subway", trans: "地铁", emoji: "🚇" },
+        { word: "Airplane", trans: "飞机", emoji: "✈️" }, { word: "Helicopter", trans: "直升机", emoji: "🚁" },
+        { word: "Rocket", trans: "火箭", emoji: "🚀" }, { word: "Boat", trans: "船", emoji: "⛵" },
+        { word: "Ship", trans: "轮船", emoji: "🚢" }, { word: "Truck", trans: "卡车", emoji: "🚚" },
+        { word: "House", trans: "房子", emoji: "🏠" }, { word: "School", trans: "学校", emoji: "🏫" },
+        { word: "Hospital", trans: "医院", emoji: "🏥" }, { word: "Shop", trans: "商店", emoji: "🏪" },
+        { word: "Park", trans: "公园", emoji: "⛲" }, { word: "Castle", trans: "城堡", emoji: "🏰" },
+
+        // 自然与天气 (Nature & Weather)
+        { word: "Sun", trans: "太阳", emoji: "☀️" }, { word: "Moon", trans: "月亮", emoji: "🌙" },
+        { word: "Star", trans: "星星", emoji: "⭐" }, { word: "Cloud", trans: "云", emoji: "☁️" },
+        { word: "Rain", trans: "雨", emoji: "🌧️" }, { word: "Snow", trans: "雪", emoji: "❄️" },
+        { word: "Wind", trans: "风", emoji: "🌬️" }, { word: "Lightning", trans: "闪电", emoji: "⚡" },
+        { word: "Rainbow", trans: "彩虹", emoji: "🌈" }, { word: "Fire", trans: "火", emoji: "🔥" },
+        { word: "Tree", trans: "树", emoji: "🌳" }, { word: "Flower", trans: "花", emoji: "🌸" },
+        { word: "Grass", trans: "草", emoji: "🌿" }, { word: "Leaf", trans: "叶子", emoji: "🍃" },
+        { word: "Mountain", trans: "山", emoji: "⛰️" }, { word: "Ocean", trans: "大海", emoji: "🌊" },
+        { word: "Earth", trans: "地球", emoji: "🌍" }, { word: "Volcano", trans: "火山", emoji: "🌋" },
+
+        // 物品与工具 (Objects)
+        { word: "Book", trans: "书", emoji: "📖" }, { word: "Pen", trans: "钢笔", emoji: "🖊️" },
+        { word: "Pencil", trans: "铅笔", emoji: "✏️" }, { word: "Ruler", trans: "尺子", emoji: "📏" },
+        { word: "Eraser", trans: "橡皮", emoji: "🧽" }, { word: "Scissors", trans: "剪刀", emoji: "✂️" },
+        { word: "Bag", trans: "书包", emoji: "🎒" }, { word: "Computer", trans: "电脑", emoji: "💻" },
+        { word: "Phone", trans: "手机", emoji: "📱" }, { word: "Camera", trans: "相机", emoji: "📷" },
+        { word: "TV", trans: "电视", emoji: "📺" }, { word: "Clock", trans: "时钟", emoji: "⏰" },
+        { word: "Key", trans: "钥匙", emoji: "🔑" }, { word: "Lock", trans: "锁", emoji: "🔒" },
+        { word: "Box", trans: "盒子", emoji: "📦" }, { word: "Gift", trans: "礼物", emoji: "🎁" },
+        { word: "Balloon", trans: "气球", emoji: "🎈" }, { word: "Umbrella", trans: "雨伞", emoji: "☂️" },
+        { word: "Glasses", trans: "眼镜", emoji: "👓" }, { word: "Bed", trans: "床", emoji: "🛏️" },
+        { word: "Chair", trans: "椅子", emoji: "🪑" }, { word: "Table", trans: "桌子", emoji: "桌" },
+        { word: "Door", trans: "门", emoji: "🚪" }, { word: "Window", trans: "窗户", emoji: "🪟" },
+        { word: "Toothbrush", trans: "牙刷", emoji: "🪥" }, { word: "Soap", trans: "肥皂", emoji: "🧼" },
+        { word: "Money", trans: "钱", emoji: "💰" }, { word: "Map", trans: "地图", emoji: "🗺️" },
+
+        // 身体与衣服 (Body & Clothes)
+        { word: "Eye", trans: "眼睛", emoji: "👁️" }, { word: "Ear", trans: "耳朵", emoji: "👂" },
+        { word: "Nose", trans: "鼻子", emoji: "👃" }, { word: "Mouth", trans: "嘴巴", emoji: "👄" },
+        { word: "Hand", trans: "手", emoji: "✋" }, { word: "Foot", trans: "脚", emoji: "🦶" },
+        { word: "Arm", trans: "手臂", emoji: "💪" }, { word: "Leg", trans: "腿", emoji: "🦵" },
+        { word: "Tooth", trans: "牙齿", emoji: "🦷" }, { word: "Heart", trans: "心", emoji: "❤️" },
+        { word: "Brain", trans: "大脑", emoji: "🧠" }, { word: "Bone", trans: "骨头", emoji: "🦴" },
+        { word: "T-shirt", trans: "T恤", emoji: "👕" }, { word: "Pants", trans: "裤子", emoji: "👖" },
+        { word: "Dress", trans: "裙子", emoji: "👗" }, { word: "Coat", trans: "外套", emoji: "🧥" },
+        { word: "Shoes", trans: "鞋子", emoji: "👟" }, { word: "Socks", trans: "袜子", emoji: "🧦" },
+        { word: "Hat", trans: "帽子", emoji: "👒" }, { word: "Gloves", trans: "手套", emoji: "🧤" },
+        { word: "Scarf", trans: "围巾", emoji: "🧣" }, { word: "Ring", trans: "戒指", emoji: "💍" },
+        { word: "Crown", trans: "皇冠", emoji: "👑" },
+
+        // 人物与职业 (People & Jobs)
+        { word: "Boy", trans: "男孩", emoji: "👦" }, { word: "Girl", trans: "女孩", emoji: "👧" },
+        { word: "Man", trans: "男人", emoji: "👨" }, { word: "Woman", trans: "女人", emoji: "👩" },
+        { word: "Baby", trans: "婴儿", emoji: "👶" }, { word: "Police", trans: "警察", emoji: "👮" },
+        { word: "Doctor", trans: "医生", emoji: "👨‍⚕️" }, { word: "Nurse", trans: "护士", emoji: "👩‍⚕️" },
+        { word: "Teacher", trans: "老师", emoji: "🧑‍🏫" }, { word: "Chef", trans: "厨师", emoji: "👨‍🍳" },
+        { word: "Farmer", trans: "农民", emoji: "👩‍🌾" }, { word: "Artist", trans: "画家", emoji: "🎨" },
+        { word: "Singer", trans: "歌手", emoji: "🎤" }, { word: "Astronaut", trans: "宇航员", emoji: "🧑‍🚀" },
+        { word: "King", trans: "国王", emoji: "🤴" }, { word: "Queen", trans: "女王", emoji: "👸" },
+        { word: "Prince", trans: "王子", emoji: "🤴" }, { word: "Princess", trans: "公主", emoji: "👸" },
+        { word: "Santa", trans: "圣诞老人", emoji: "🎅" }, { word: "Ghost", trans: "幽灵", emoji: "👻" },
+        { word: "Robot", trans: "机器人", emoji: "🤖" }, { word: "Alien", trans: "外星人", emoji: "👽" },
+
+        // 运动与爱好 (Sports & Hobbies)
+        { word: "Soccer", trans: "足球", emoji: "⚽" }, { word: "Basketball", trans: "篮球", emoji: "🏀" },
+        { word: "Baseball", trans: "棒球", emoji: "⚾" }, { word: "Tennis", trans: "网球", emoji: "🎾" },
+        { word: "Volleyball", trans: "排球", emoji: "🏐" }, { word: "Badminton", trans: "羽毛球", emoji: "🏸" },
+        { word: "Ping Pong", trans: "乒乓球", emoji: "🏓" }, { word: "Boxing", trans: "拳击", emoji: "🥊" },
+        { word: "Skiing", trans: "滑雪", emoji: "🎿" }, { word: "Skate", trans: "滑冰", emoji: "⛸️" },
+        { word: "Music", trans: "音乐", emoji: "🎵" }, { word: "Guitar", trans: "吉他", emoji: "🎸" },
+        { word: "Piano", trans: "钢琴", emoji: "🎹" }, { word: "Violin", trans: "小提琴", emoji: "🎻" },
+        { word: "Drum", trans: "鼓", emoji: "🥁" }, { word: "Game", trans: "游戏", emoji: "🎮" },
+
+        // 颜色与形容词 (Colors & Adjectives)
+        { word: "Red", trans: "红色", emoji: "🔴" }, { word: "Blue", trans: "蓝色", emoji: "🔵" },
+        { word: "Yellow", trans: "黄色", emoji: "🟡" }, { word: "Green", trans: "绿色", emoji: "🟢" },
+        { word: "Purple", trans: "紫色", emoji: "🟣" }, { word: "Black", trans: "黑色", emoji: "⚫" },
+        { word: "White", trans: "白色", emoji: "⚪" }, { word: "Orange", trans: "橙色", emoji: "🟠" },
+        { word: "Happy", trans: "开心的", emoji: "😄" }, { word: "Sad", trans: "伤心的", emoji: "😢" },
+        { word: "Angry", trans: "生气的", emoji: "😠" }, { word: "Sleepy", trans: "困的", emoji: "😪" },
+        { word: "Cool", trans: "酷", emoji: "😎" }, { word: "Sick", trans: "生病的", emoji: "🤒" },
+        { word: "Hot", trans: "热", emoji: "🥵" }, { word: "Cold", trans: "冷", emoji: "🥶" },
+        { word: "Love", trans: "爱", emoji: "❤️" }, { word: "Strong", trans: "强壮", emoji: "💪" }
+    ];
+
+    // --- 游戏状态变量 ---
+    const WORDS_PER_DAY = 20;
+    const WORDS_PER_STAGE = 5;
+    const TOTAL_STAGES = 4;
+
+    let dailyWords = [];
+    let currentStage = 1;
+    let stageWords = [];
+    let currentIndex = 0;
+    
+    function shuffleArray(array) {
+        let newArr = [...array];
+        for (let i = newArr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+        }
+        return newArr;
+    }
+
+    // 初始化游戏
+    function initGame() {
+        const shuffledAll = shuffleArray(fullVocabulary);
+        dailyWords = shuffledAll.slice(0, WORDS_PER_DAY);
+        currentStage = 1;
+        startStage();
+    }
+
+    // 开始关卡
+    function startStage() {
+        const start = (currentStage - 1) * WORDS_PER_STAGE;
+        const end = start + WORDS_PER_STAGE;
+        stageWords = dailyWords.slice(start, end);
+        currentIndex = 0;
+        
+        document.getElementById('stage-indicator').style.display = 'block';
+        document.getElementById('stage-indicator').textContent = `第 ${currentStage} / ${TOTAL_STAGES} 关`;
+        
+        loadStudyCard();
+        showScreen('study-screen');
+    }
+
+    // 学习逻辑
+    function loadStudyCard() {
+        const item = stageWords[currentIndex];
+        document.getElementById('study-emoji').textContent = item.emoji;
+        document.getElementById('study-word').textContent = item.word;
+        document.getElementById('study-trans').textContent = item.trans;
+
+        const btn = document.getElementById('study-next-btn');
+        if (currentIndex === stageWords.length - 1) {
+            btn.textContent = "去测验挑战！";
+            btn.style.backgroundColor = "var(--primary-color)";
+        } else {
+            btn.textContent = "下一个";
+            btn.style.backgroundColor = "var(--secondary-color)";
+        }
+        
+        // 自动发音
+        setTimeout(() => speak(item.word), 300);
+    }
+
+    function nextStudyCard() {
+        if (currentIndex < stageWords.length - 1) {
+            currentIndex++;
+            loadStudyCard();
+        } else {
+            startQuiz();
+        }
+    }
+
+    // 测验逻辑
+    function startQuiz() {
+        currentIndex = 0;
+        loadQuizQuestion();
+        showScreen('quiz-screen');
+    }
+
+    function loadQuizQuestion() {
+        const item = stageWords[currentIndex];
+        document.getElementById('quiz-question').textContent = item.trans;
+        
+        const progressPct = (currentIndex / stageWords.length) * 100;
+        document.getElementById('progress').style.width = `${progressPct}%`;
+
+        // 干扰项逻辑：优先从当天未出现的词库中选，如果没有则从大词库选
+        let options = [item];
+        let pool = fullVocabulary.filter(w => w.word !== item.word);
+        pool = shuffleArray(pool);
+        options = options.concat(pool.slice(0, 2));
+        options = shuffleArray(options);
+
+        const container = document.getElementById('quiz-options');
+        container.innerHTML = '';
+
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerHTML = `<span style="font-size:1.4rem; vertical-align:middle; margin-right:10px">${opt.emoji}</span> ${opt.word}`;
+            btn.onclick = () => checkAnswer(opt, item, btn);
+            container.appendChild(btn);
+        });
+    }
+
+    function checkAnswer(selected, correct, btn) {
+        if (selected.word === correct.word) {
+            btn.classList.add('correct-anim');
+            speak("Good job!");
+            confetti({ particleCount: 20, spread: 40, origin: { y: 0.7 } });
+            
+            setTimeout(() => {
+                if (currentIndex < stageWords.length - 1) {
+                    currentIndex++;
+                    loadQuizQuestion();
+                } else {
+                    finishStage();
+                }
+            }, 1000);
+        } else {
+            btn.classList.add('wrong-anim');
+            speak("Try again");
+            if(navigator.vibrate) navigator.vibrate(200);
+            setTimeout(() => btn.classList.remove('wrong-anim'), 500);
+        }
+    }
+
+    function finishStage() {
+        document.getElementById('progress').style.width = '100%';
+        if (currentStage < TOTAL_STAGES) {
+            showScreen('level-screen');
+            speak("Level Complete!");
+        } else {
+            showScreen('final-screen');
+            speak("All finished! Excellent!");
+            fireBigConfetti();
+            document.getElementById('stage-indicator').style.display = 'none';
+        }
+    }
+
+    function nextStage() {
+        currentStage++;
+        startStage();
+    }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    function speak(text) {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'en-US';
+        u.rate = 0.8;
+        window.speechSynthesis.speak(u);
+    }
+    
+    function speakCurrentWord() {
+        speak(stageWords[currentIndex].word);
+    }
+
+    function fireBigConfetti() {
+        const duration = 3000;
+        const end = Date.now() + duration;
+        (function frame() {
+            confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 } });
+            confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 } });
+            if (Date.now() < end) requestAnimationFrame(frame);
+        }());
+    }
+</script>
+</body>
+</html>
