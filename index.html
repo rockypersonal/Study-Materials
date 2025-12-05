@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>探索身体的小小世界</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=ZCOOL+KuaiLe&display=swap');
+      body {
+        font-family: 'Nunito', 'ZCOOL KuaiLe', sans-serif;
+      }
+      .slide-enter {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      .slide-enter-active {
+        opacity: 1;
+        transform: translateX(0);
+        transition: opacity 300ms, transform 300ms;
+      }
+      .slide-exit {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      .slide-exit-active {
+        opacity: 0;
+        transform: translateX(-20px);
+        transition: opacity 300ms, transform 300ms;
+      }
+    </style>
+
+<link rel="stylesheet" href="/index.css">
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "vite": "https://aistudiocdn.com/vite@^7.2.6",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
+  }
+}
+</script>
+  <script type="module" crossorigin src="./assets/index-Bdm9IW9b.js"></script>
+</head>
+  <body class="bg-sky-50 text-slate-800 antialiased overflow-hidden selection:bg-pink-200">
+    <div id="root"></div>
+  </body>
+</html>
